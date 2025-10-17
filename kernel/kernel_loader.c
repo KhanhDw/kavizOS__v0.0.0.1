@@ -1,16 +1,25 @@
-// kernel.c
-void kernel_main() {
-    // Clear screen
-    char* video = (char*)0xB8000;
-    for(int i = 0; i < 80*25*2; i++) {
-        video[i] = 0;
+// kernel/kernel_loader.c
+#include "boot.h"
+#include "drivers/console.h"
+
+void kernel_main(void) {
+    // Khởi tạo console
+    console_initialize();
+
+    // In thông báo khởi động
+    console_write("MyOS Kernel Booted Successfully!\n");
+    console_write("Console System: READY\n");
+
+    // Test các chức năng console
+    console_write("Testing console functions:\n");
+    console_write("-> Line 1\n");
+    console_write("-> Line 2\n");
+    console_write("-> Line 3\n");
+
+    console_write("> ");
+
+    // Vòng lặp chính
+    while (1) {
+        asm volatile ("hlt");
     }
-
-    // Print message
-    video[0] = 'H';
-    video[1] = 0x1F;  // Xanh trên đỏ
-    video[2] = 'I';
-    video[3] = 0x1F;
-
-    while(1);
 }

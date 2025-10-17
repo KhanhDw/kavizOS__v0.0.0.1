@@ -1,10 +1,9 @@
 /* boot.ld */
-OUTPUT_FORMAT("elf32-i386")
-ENTRY(main32)
+ENTRY(kernel_main)  /* SỬA THÀNH kernel_main */
 
 SECTIONS
 {
-    . = 0x10000;  /* Stage3 load address - QUAN TRỌNG */
+    . = 0x10000;  /* Địa chỉ nạp kernel */
 
     .text : {
         *(.text)
@@ -12,10 +11,6 @@ SECTIONS
 
     .data : {
         *(.data)
-    }
-
-    .rodata : {
-        *(.rodata)
     }
 
     .bss : {

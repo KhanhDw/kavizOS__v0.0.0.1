@@ -1,81 +1,108 @@
-# Makefile - Phiên bản đã sửa lỗi và hoàn thiện
+# Makefile - Phiên bản đã sửa
 ASM=nasm
 CC=gcc
-# Đảm bảo bạn có cross-compiler i686-elf-gcc để có kết quả tốt nhất
-# CC=i686-elf-gcc
-CFLAGS=-ffreestanding -nostdlib -m32 -O2 -I./include -fno-pie -c
-
+CFLAGS=-ffreestanding -nostdlib -m32 -O2 -I./include -fno-pie -c -Wall -Wextra
+ASMFLAGS=-f elf32
 LD=ld
-# LD=i686-elf-ld
 LDFLAGS=-m elf_i386 -T boot.ld -nostdlib
 
 # Thư mục
 BUILD_DIR = build
 BOOT_DIR = boot
 KERNEL_DIR = kernel
+DRIVERS_DIR = $(KERNEL_DIR)/drivers
 INCLUDE_DIR = include
 
 # Tên tệp ảnh đĩa
 IMAGE_FILE = $(BUILD_DIR)/os-image.img
 
-# Tạo thư mục build nếu chưa tồn tại
-$(shell mkdir -p $(BUILD_DIR))
+# Tìm tất cả file nguồn C (LOẠI BỎ kernel_loader.c khỏi wildcard)
+C_SOURCES = $(wildcard $(KERNEL_DIR)/*.c $(DRIVERS_DIR)/*.c)
+C_SOURCES := $(filter-out $(KERNEL_DIR)/kernel_loader.c, $(C_SOURCES))
 
+# Thêm kernel_loader.c riêng
+KERNEL_LOADER_SOURCE = $(KERNEL_DIR)/kernel_loader.c
+
+C_OBJECTS = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES))
+KERNEL_LOADER_OBJECT = $(BUILD_DIR)/kernel_loader.o
+
+# Tìm tất cả file nguồn ASM
+ASM_SOURCES = $(wildcard $(KERNEL_DIR)/*.asm $(DRIVERS_DIR)/*.asm)
+ASM_OBJECTS = $(patsubst %.asm, $(BUILD_DIR)/%.o, $(ASM_SOURCES))
+
+# Tạo thư mục build nếu chưa tồn tại
+$(shell mkdir -p $(BUILD_DIR) $(BUILD_DIR)/$(KERNEL_DIR) $(BUILD_DIR)/$(DRIVERS_DIR))
+
+# Target mặc định
 all: $(IMAGE_FILE)
 
-# --- QUY TẮC TẠO ẢNH ĐĨA ĐÃ SỬA LẠI ---
-# Tạo ảnh đĩa mềm 1.44MB và ghi các thành phần vào đúng vị trí
-$(IMAGE_FILE): $(BUILD_DIR)/boot_sect.bin $(BUILD_DIR)/main_bootloader.bin $(BUILD_DIR)/kernel_loader.bin
-	@echo "Creating disk image: $@"
-	# Tạo một ảnh đĩa trống 1.44MB (2880 sectors)
-	dd if=/dev/zero of=$@ bs=512 count=2880 2>/dev/null
+# --- QUY TẮC TẠO ẢNH ĐĨA ---
+$(IMAGE_FILE): $(BUILD_DIR)/boot_sect.bin $(BUILD_DIR)/main_bootloader.bin $(BUILD_DIR)/kernel.bin
+	@echo "🔨 Creating disk image: $@"
 
-	# Ghi boot sector vào Sector 1 (seek=0)
-	dd if=$(BUILD_DIR)/boot_sect.bin of=$@ seek=0 conv=notrunc
+	# Tạo ảnh đĩa trống 1.44MB
+	dd if=/dev/zero of=$@ bs=512 count=2880 status=none
 
-	# Ghi main bootloader vào Sector 2 (seek=1)
-	dd if=$(BUILD_DIR)/main_bootloader.bin of=$@ seek=1 conv=notrunc
+	# Ghi boot sector (Sector 1)
+	dd if=$(BUILD_DIR)/boot_sect.bin of=$@ bs=512 seek=0 conv=notrunc status=none
 
-	# Ghi kernel loader vào Sector 10 (seek=9)
-	dd if=$(BUILD_DIR)/kernel_loader.bin of=$@ seek=9 conv=notrunc
+	# Ghi main bootloader (Sector 2)
+	dd if=$(BUILD_DIR)/main_bootloader.bin of=$@ bs=512 seek=1 conv=notrunc status=none
 
-	@echo "Disk image created successfully!"
+	# Ghi kernel (Bắt đầu từ Sector 10)
+	dd if=$(BUILD_DIR)/kernel.bin of=$@ bs=512 seek=9 conv=notrunc status=none
 
-# Boot sector
+	@echo "✅ Disk image created: $@"
+
+# --- BOOTLOADER BINARIES ---
 $(BUILD_DIR)/boot_sect.bin: $(BOOT_DIR)/boot_sector.asm
+	@echo "📦 Building boot sector: $@"
 	$(ASM) -f bin -o $@ $<
 
-# main_bootloader
 $(BUILD_DIR)/main_bootloader.bin: $(BOOT_DIR)/main_bootloader.asm
+	@echo "📦 Building main bootloader: $@"
 	$(ASM) -f bin -o $@ $<
 
-# kernel_core
-$(BUILD_DIR)/kernel_core.bin: $(BOOT_DIR)/kernel_core.asm
-	$(ASM) -f bin -o $@ $<
+# --- KERNEL BINARY ---
+$(BUILD_DIR)/kernel.bin: $(KERNEL_LOADER_OBJECT) $(C_OBJECTS) $(ASM_OBJECTS)
+	@echo "🔗 Linking kernel: $@"
+	$(LD) $(LDFLAGS) -o $(BUILD_DIR)/kernel.elf $^
+	objcopy -O binary $(BUILD_DIR)/kernel.elf $@
+	@echo "📊 Kernel size: `stat -c%s $@` bytes"
 
-# Kernel loader object
-$(BUILD_DIR)/kernel_loader.o: $(KERNEL_DIR)/kernel_loader.c $(INCLUDE_DIR)/boot.h
+# --- KERNEL LOADER (RIÊNG BIỆT) ---
+$(KERNEL_LOADER_OBJECT): $(KERNEL_LOADER_SOURCE) $(INCLUDE_DIR)/boot.h
+	@echo "🔨 Compiling kernel loader: $@"
 	$(CC) $(CFLAGS) -o $@ $<
 
-# Kernel loader binary
-$(BUILD_DIR)/kernel_loader.bin: $(BUILD_DIR)/kernel_loader.o
-	# Giả sử bạn có file boot.ld để định vị kernel tại 0x10000
-	# Nếu không, bạn cần thêm các tùy chọn linker phù hợp.
-	$(LD) $(LDFLAGS) -o $(BUILD_DIR)/kernel_loader.elf $^
-	objcopy -O binary $(BUILD_DIR)/kernel_loader.elf $@
+# --- COMPILE C SOURCES (KHÔNG BAO GỒM KERNEL_LOADER) ---
+$(BUILD_DIR)/%.o: %.c
+	@echo "🔨 Compiling C: $< -> $@"
+	$(CC) $(CFLAGS) -o $@ $<
 
-# Run với QEMU
+# --- COMPILE ASSEMBLY SOURCES ---
+$(BUILD_DIR)/%.o: %.asm
+	@echo "🔨 Assembling: $< -> $@"
+	$(ASM) $(ASMFLAGS) -o $@ $<
+
+# --- QEMU TARGETS ---
 run: $(IMAGE_FILE)
-	@echo "Starting QEMU..."
-	qemu-system-x86_64 -fda $(IMAGE_FILE)
+	@echo "🚀 Starting QEMU..."
+	qemu-system-x86_64 -fda $(IMAGE_FILE) -no-reboot -no-shutdown
 
-# Debug
 debug: $(IMAGE_FILE)
-	@echo "Starting QEMU in debug mode..."
-	qemu-system-x86_64 -fda $(IMAGE_FILE) -S -gdb tcp::1234
+	@echo "🐛 Starting QEMU in debug mode..."
+	qemu-system-x86_64 -fda $(IMAGE_FILE) -S -s -no-reboot -no-shutdown &
+	@echo "💡 Connect with: gdb -ex 'target remote localhost:1234' -ex 'symbol-file build/kernel.elf'"
 
+# --- UTILITY TARGETS ---
 clean:
+	@echo "🧹 Cleaning build directory..."
 	rm -rf $(BUILD_DIR)
-	@echo "Cleaned $(BUILD_DIR) directory"
+	@echo "✅ Clean completed"
 
-.PHONY: all run debug clean
+disasm: $(BUILD_DIR)/kernel.elf
+	@echo "📖 Disassembling kernel..."
+	objdump -D -M intel $(BUILD_DIR)/kernel.elf | less
+
+.PHONY: all run debug clean disasm
