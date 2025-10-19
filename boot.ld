@@ -1,9 +1,9 @@
 /* boot.ld */
-ENTRY(kernel_main)  /* SỬA THÀNH kernel_main */
+ENTRY(kernel_main)
 
 SECTIONS
 {
-    . = 0x10000;  /* Địa chỉ nạp kernel */
+    . = 0x100000;  /* Địa chỉ nạp kernel (1MB) */
 
     .text : {
         *(.text)
