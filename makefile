@@ -7,9 +7,9 @@ CC          = gcc
 LD          = ld
 OBJCOPY     = objcopy
 
-CFLAGS      = -ffreestanding -nostdlib -m32 -O2 -I./include -fno-pie -c -Wall -Wextra
-ASMFLAGS    = -f elf32
-LDFLAGS     = -m elf_i386 -T boot.ld -nostdlib
+CFLAGS      = -ffreestanding -nostdlib -m64 -mcmodel=large -mno-red-zone -O2 -I./include -fno-pie -c -Wall -Wextra
+ASMFLAGS    = -f elf64
+LDFLAGS     = -m elf_x86_64 -T boot.ld -nostdlib
 
 BUILD_DIR   = build
 BOOT_DIR    = boot
@@ -26,20 +26,36 @@ IMAGE_FILE  = $(BUILD_DIR)/os-image.img
 C_SOURCES   = $(wildcard $(KERNEL_DIR)/*.c $(DRIVERS_DIR)/*.c)
 C_SOURCES   := $(filter-out $(KERNEL_DIR)/kernel_loader.c, $(C_SOURCES))
 ASM_SOURCES = $(wildcard $(KERNEL_DIR)/*.asm $(DRIVERS_DIR)/*.asm)
+ASM_SOURCES := $(filter-out $(KERNEL_DIR)/kernel_entry.asm, $(ASM_SOURCES))
+ASM_SOURCES := $(filter-out $(KERNEL_DIR)/interrupts.asm, $(ASM_SOURCES))
+ASM_SOURCES := $(filter-out $(KERNEL_DIR)/apic_isr_stubs.asm, $(ASM_SOURCES))
+ASM_SOURCES := $(filter-out $(KERNEL_DIR)/context_switch.asm, $(ASM_SOURCES))
 
 KERNEL_LOADER_SOURCE = $(KERNEL_DIR)/kernel_loader.c
+KERNEL_ENTRY_ASM     = $(KERNEL_DIR)/kernel_entry.asm
+INTERRUPTS_ASM       = $(KERNEL_DIR)/interrupts.asm
+APIC_INTERRUPTS_ASM  = $(KERNEL_DIR)/apic_isr_stubs.asm
+CONTEXT_SWITCH_ASM   = $(KERNEL_DIR)/context_switch.asm
 
 C_OBJECTS           = $(patsubst %.c, $(BUILD_DIR)/%.o, $(C_SOURCES))
 ASM_OBJECTS         = $(patsubst %.asm, $(BUILD_DIR)/%.o, $(ASM_SOURCES))
 KERNEL_LOADER_OBJECT = $(BUILD_DIR)/kernel_loader.o
+KERNEL_ENTRY_OBJECT  = $(BUILD_DIR)/kernel_entry.o
+INTERRUPTS_OBJECT    = $(BUILD_DIR)/interrupts.o
+APIC_INTERRUPTS_OBJECT = $(BUILD_DIR)/apic_isr_stubs.o
+CONTEXT_SWITCH_OBJECT = $(BUILD_DIR)/context_switch.o
 
-$(shell mkdir -p $(BUILD_DIR) $(BUILD_DIR)/$(KERNEL_DIR) $(BUILD_DIR)/$(DRIVERS_DIR))
+# Consolidate all object files in one place to avoid duplicates
+ALL_OBJECTS = $(KERNEL_ENTRY_OBJECT) $(KERNEL_LOADER_OBJECT) $(INTERRUPTS_OBJECT) $(APIC_INTERRUPTS_OBJECT) $(CONTEXT_SWITCH_OBJECT) $(C_OBJECTS) $(ASM_OBJECTS)
 
 # =========================
 # Default target
 # =========================
 
-all: $(IMAGE_FILE)
+all: dirs $(IMAGE_FILE)
+
+dirs:
+	mkdir -p $(BUILD_DIR) $(BUILD_DIR)/kernel $(BUILD_DIR)/kernel/drivers
 
 # =========================
 # Disk image build
@@ -71,11 +87,27 @@ $(BUILD_DIR)/main_bootloader.bin: $(BOOT_DIR)/stage2/2_main_bootloader.asm
 # Kernel build
 # =========================
 
-$(BUILD_DIR)/kernel.bin: $(KERNEL_LOADER_OBJECT) $(C_OBJECTS) $(ASM_OBJECTS)
+$(BUILD_DIR)/kernel.bin: $(ALL_OBJECTS)
 	@echo "[LD ] Linking kernel..."
 	$(LD) $(LDFLAGS) -o $(BUILD_DIR)/kernel.elf $^
 	$(OBJCOPY) -O binary $(BUILD_DIR)/kernel.elf $@
 	@echo "[SIZE] Kernel: `stat -c%s $@` bytes"
+
+$(KERNEL_ENTRY_OBJECT): $(KERNEL_ENTRY_ASM)
+	@echo "[ASM] Kernel entry point"
+	$(ASM) $(ASMFLAGS) -o $@ $<
+
+$(INTERRUPTS_OBJECT): $(INTERRUPTS_ASM)
+	@echo "[ASM] Interrupt handlers"
+	$(ASM) $(ASMFLAGS) -o $@ $<
+
+$(APIC_INTERRUPTS_OBJECT): $(APIC_INTERRUPTS_ASM)
+	@echo "[ASM] APIC Interrupt handlers"
+	$(ASM) $(ASMFLAGS) -o $@ $<
+
+$(CONTEXT_SWITCH_OBJECT): $(CONTEXT_SWITCH_ASM)
+	@echo "[ASM] Context switching"
+	$(ASM) $(ASMFLAGS) -o $@ $<
 
 $(KERNEL_LOADER_OBJECT): $(KERNEL_LOADER_SOURCE) $(INCLUDE_DIR)/boot.h
 	@echo "[CC ] Kernel loader"
@@ -96,6 +128,7 @@ $(BUILD_DIR)/%.o: %.asm
 run: $(IMAGE_FILE)
 	@echo "[🚀] Running in QEMU..."
 	qemu-system-x86_64 -fda $(IMAGE_FILE) -no-reboot -no-shutdown
+
 
 debug: $(IMAGE_FILE)
 	@echo "[🐞] QEMU debug mode..."

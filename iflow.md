@@ -1,0 +1,1 @@
+phân tích dự án của tôi, có thể chuyển đến hệ thống tương tự nhưu MacOS được không . và chuyển qua thì cần làm những gì.

@@ -92,3 +92,4 @@ halt_system:
 %include "memory_detection.asm"
 %include "bootloader_init.asm"
 %include "error_handling.asm"
+%include "paging_setup.asm"

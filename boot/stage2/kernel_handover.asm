@@ -44,10 +44,10 @@ handover_to_kernel:
     call prepare_boot_info
 
     ; Set up registers for kernel entry
-    ; EBX = Magic number (0x1BADB002)
-    ; EAX = Boot info structure address
-    mov eax, 0x9000    ; Boot info address
-    mov ebx, 0x1BADB002 ; Magic number
+    ; RDI = Boot info structure address
+    ; RSI = Magic number (0x1BADB002)
+    mov rdi, 0x9000    ; Boot info address
+    mov rsi, 0x1BADB002 ; Magic number
 
     ; Jump to kernel entry point
     ; The kernel should be loaded at 0x100000 (1MB)

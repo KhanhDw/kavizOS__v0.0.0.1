@@ -1,5 +1,5 @@
 /* boot.ld */
-ENTRY(kernel_main)
+ENTRY(_start)
 
 SECTIONS
 {
@@ -8,12 +8,18 @@ SECTIONS
     .text : {
         *(.text)
     }
-
+    
     .data : {
         *(.data)
     }
-
+    
     .bss : {
+        _bss_start = .;
         *(.bss)
+        _bss_end = .;
+    }
+    
+    /DISCARD/ : {
+        *(.note.GNU-stack)
     }
 }

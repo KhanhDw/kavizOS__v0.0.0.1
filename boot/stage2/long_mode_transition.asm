@@ -2,6 +2,8 @@
 ; Code to transition from Protected Mode (32-bit) to Long Mode (64-bit)
 [BITS 32]
 
+%include "paging_setup.asm"
+
 ; Check if CPU supports Long Mode
 check_long_mode_support:
     ; Check if CPUID is supported
@@ -32,27 +34,11 @@ check_long_mode_support:
     jmp halt_system
 
 .long_mode_supported:
-    ; Enable PAE (Physical Address Extension)
-    mov eax, cr4
-    or eax, 1 << 5  ; Set PAE bit
-    mov cr4, eax
+    ; Set up proper paging structures for Long Mode
+    call setup_paging
 
-    ; Load PML4 table (assuming it's already set up at a known address)
-    ; This would typically be done by the kernel or earlier boot stages
-    ; For now, we'll assume it's at a fixed address
-    mov eax, 0x100000  ; Example PML4 address
-    mov cr3, eax
-
-    ; Enable Long Mode (EFER.LME = 1)
-    mov ecx, 0xC0000080  ; EFER MSR
-    rdmsr
-    or eax, 1 << 8       ; Set LME bit
-    wrmsr
-
-    ; Enable Paging (CR0.PG = 1)
-    mov eax, cr0
-    or eax, 1 << 31      ; Set PG bit
-    mov cr0, eax
+    ; Enable paging with PAE for Long Mode
+    call enable_paging_long_mode
 
     ; Far jump to 64-bit code segment
     jmp CODE64_SEG:long_mode_entry

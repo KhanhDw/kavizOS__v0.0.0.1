@@ -21,7 +21,7 @@ bootloader_init:
 
     ret
 
-; Function to print boot information
+; Function to print detailed boot information
 print_boot_info:
     ; Print memory information
     mov esi, msg_memory_info
@@ -35,6 +35,53 @@ print_boot_info:
     mov esi, msg_newline
     call print_string_pm
 
+    ; Print detailed memory map if entries exist
+    mov eax, [0x9000 + boot_info.memory_entries]
+    cmp eax, 0
+    je .no_entries
+
+    ; Print each memory entry
+    mov ecx, eax  ; Entry count
+    mov edi, 0x8000  ; Memory map address
+
+.print_loop:
+    push ecx
+    push edi
+    
+    ; Print base address
+    mov esi, msg_mem_base
+    call print_string_pm
+    mov eax, [edi + e820_entry.base_high]
+    call print_hex_pm
+    mov eax, [edi + e820_entry.base_low]
+    call print_hex_pm
+    
+    ; Print length
+    mov esi, msg_mem_length
+    call print_string_pm
+    mov eax, [edi + e820_entry.length_high]
+    call print_hex_pm
+    mov eax, [edi + e820_entry.length_low]
+    call print_hex_pm
+    
+    ; Print type
+    mov esi, msg_mem_type
+    call print_string_pm
+    mov eax, [edi + e820_entry.type]
+    call print_hex_pm
+    
+    ; New line
+    mov esi, msg_newline
+    call print_string_pm
+    
+    ; Move to next entry
+    add edi, e820_entry.end
+    
+    pop edi
+    pop ecx
+    loop .print_loop
+
+.no_entries:
     ret
 
 ; Function to validate kernel before handover
@@ -74,4 +121,7 @@ section .data
 msg_init_start db "Initializing bootloader components...", 0
 msg_memory_info db "Memory entries detected: ", 0
 msg_handover_start db "Preparing for kernel handover...", 0
+msg_mem_base db "Base: 0x", 0
+msg_mem_length db " Length: 0x", 0
+msg_mem_type db " Type: 0x", 0
 msg_newline db 0x0D, 0x0A, 0

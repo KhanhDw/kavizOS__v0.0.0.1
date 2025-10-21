@@ -1,0 +1,412 @@
+{
+  "project_name": "Kaviz OS",
+  "stage": 2,
+  "stage_name": "Persistent Storage and System Protection",
+  "description": "Implementation of mass storage drivers, file system, user mode transition, and system call interface",
+  "themes": {
+    "mass_storage_drivers": {
+      "goal": "Implement PATA/SATA drivers for persistent storage access",
+      "tasks": [
+        {
+          "id": "storage_1",
+          "title": "Research and implement PATA driver",
+          "description": "Develop a driver for PATA (IDE) storage devices to enable reading and writing to hard drives",
+          "priority": "high",
+          "estimated_effort": "3-4 days",
+          "dependencies": ["kernel/memory.c", "kernel/drivers/port_io.h"],
+          "technical_approach": {
+            "steps": [
+              "Implement PATA controller detection and initialization",
+              "Develop functions for reading and writing sectors",
+              "Create buffer management for data transfers",
+              "Implement error handling for disk operations",
+              "Add support for multiple PATA channels and devices"
+            ],
+            "files_to_create": [
+              "kernel/drivers/pata.c",
+              "kernel/drivers/pata.h"
+            ],
+            "integration_points": [
+              "Memory management for buffers",
+              "Interrupt handling for DMA operations"
+            ]
+          }
+        },
+        {
+          "id": "storage_2",
+          "title": "Research and implement SATA driver",
+          "description": "Develop a driver for SATA storage devices as a more modern alternative to PATA",
+          "priority": "medium",
+          "estimated_effort": "4-5 days",
+          "dependencies": ["PATA driver implementation", "kernel/memory.c"],
+          "technical_approach": {
+            "steps": [
+              "Implement AHCI controller detection and initialization",
+              "Develop functions for SATA command processing",
+              "Create FIS (Frame Information Structure) handling",
+              "Implement NCQ (Native Command Queuing) support",
+              "Add support for hot-plug detection"
+            ],
+            "files_to_create": [
+              "kernel/drivers/sata.c",
+              "kernel/drivers/sata.h"
+            ],
+            "integration_points": [
+              "PCI configuration for AHCI controllers",
+              "Interrupt handling for SATA interrupts"
+            ]
+          }
+        },
+        {
+          "id": "storage_3",
+          "title": "Create unified storage interface",
+          "description": "Develop a common interface for accessing different storage devices",
+          "priority": "high",
+          "estimated_effort": "2-3 days",
+          "dependencies": ["PATA driver", "SATA driver"],
+          "technical_approach": {
+            "steps": [
+              "Design abstract storage device interface",
+              "Implement device registration and enumeration",
+              "Create unified read/write operations",
+              "Add device capability detection",
+              "Implement storage device abstraction layer"
+            ],
+            "files_to_create": [
+              "kernel/drivers/storage.c",
+              "kernel/drivers/storage.h"
+            ],
+            "integration_points": [
+              "File system layer",
+              "Block device management"
+            ]
+          }
+        }
+      ]
+    },
+    "file_system_implementation": {
+      "goal": "Implement a Virtual File System (VFS) and concrete file system implementations",
+      "tasks": [
+        {
+          "id": "fs_1",
+          "title": "Design and implement Virtual File System (VFS)",
+          "description": "Create a virtual file system layer that abstracts different file system implementations",
+          "priority": "high",
+          "estimated_effort": "4-5 days",
+          "dependencies": ["Unified storage interface"],
+          "technical_approach": {
+            "steps": [
+              "Design VFS data structures (inodes, superblocks, file descriptors)",
+              "Implement VFS operations (open, close, read, write, seek)",
+              "Create file system registration and mounting mechanisms",
+              "Develop path resolution and directory traversal",
+              "Implement file descriptor management"
+            ],
+            "files_to_create": [
+              "kernel/fs/vfs.c",
+              "kernel/fs/vfs.h"
+            ],
+            "integration_points": [
+              "System call interface",
+              "Storage device interface"
+            ]
+          }
+        },
+        {
+          "id": "fs_2",
+          "title": "Implement FAT file system driver",
+          "description": "Create a driver for the FAT file system (FAT12/16/32) for compatibility with common storage media",
+          "priority": "high",
+          "estimated_effort": "5-6 days",
+          "dependencies": ["VFS implementation", "Unified storage interface"],
+          "technical_approach": {
+            "steps": [
+              "Implement FAT boot sector parsing",
+              "Develop FAT table management",
+              "Create directory entry handling",
+              "Implement file allocation and deallocation",
+              "Add support for long file names",
+              "Create file read/write operations"
+            ],
+            "files_to_create": [
+              "kernel/fs/fat.c",
+              "kernel/fs/fat.h"
+            ],
+            "integration_points": [
+              "VFS layer",
+              "Storage device interface"
+            ]
+          }
+        },
+        {
+          "id": "fs_3",
+          "title": "Design custom file system",
+          "description": "Design and implement a custom file system optimized for the OS",
+          "priority": "medium",
+          "estimated_effort": "6-8 days",
+          "dependencies": ["VFS implementation", "Unified storage interface"],
+          "technical_approach": {
+            "steps": [
+              "Design custom file system layout and structures",
+              "Implement superblock and metadata management",
+              "Develop inode and block allocation strategies",
+              "Create journaling mechanism for data integrity",
+              "Implement directory and file management",
+              "Add support for symbolic links and permissions"
+            ],
+            "files_to_create": [
+              "kernel/fs/custom_fs.c",
+              "kernel/fs/custom_fs.h"
+            ],
+            "integration_points": [
+              "VFS layer",
+              "Storage device interface"
+            ]
+          }
+        }
+      ]
+    },
+    "process_abstraction_user_mode": {
+      "goal": "Implement process abstraction and transition to user mode (Ring 3)",
+      "tasks": [
+        {
+          "id": "process_1",
+          "title": "Enhance process abstraction",
+          "description": "Extend the current task system to full process management with memory separation",
+          "priority": "high",
+          "estimated_effort": "4-5 days",
+          "dependencies": ["kernel/scheduler.c", "kernel/memory.c"],
+          "technical_approach": {
+            "steps": [
+              "Extend task control block with process information",
+              "Implement process creation and termination",
+              "Develop memory space separation for processes",
+              "Create process ID management",
+              "Implement process state management",
+              "Add inter-process communication primitives"
+            ],
+            "files_to_modify": [
+              "kernel/scheduler.c",
+              "kernel/scheduler.h"
+            ],
+            "files_to_create": [
+              "kernel/process.c",
+              "kernel/process.h"
+            ],
+            "integration_points": [
+              "Memory management",
+              "Scheduler"
+            ]
+          }
+        },
+        {
+          "id": "process_2",
+          "title": "Implement user mode transition",
+          "description": "Enable transition to user mode (Ring 3) for process execution with proper privilege separation",
+          "priority": "high",
+          "estimated_effort": "5-6 days",
+          "dependencies": ["Enhanced process abstraction", "GDT setup"],
+          "technical_approach": {
+            "steps": [
+              "Set up user mode segments in GDT",
+              "Implement privilege level transitions",
+              "Create user mode stack management",
+              "Develop return to user mode mechanism",
+              "Implement privilege checking for system operations",
+              "Add user mode context saving/restoring"
+            ],
+            "files_to_modify": [
+              "boot/stage2/gdt.asm",
+              "kernel/scheduler.c"
+            ],
+            "files_to_create": [
+              "kernel/user_mode.c",
+              "kernel/user_mode.h"
+            ],
+            "integration_points": [
+              "Interrupt handling",
+              "System call interface"
+            ]
+          }
+        },
+        {
+          "id": "process_3",
+          "title": "Implement process loading",
+          "description": "Create executable loading mechanism for user processes",
+          "priority": "medium",
+          "estimated_effort": "3-4 days",
+          "dependencies": ["User mode transition", "File system implementation"],
+          "technical_approach": {
+            "steps": [
+              "Design executable file format",
+              "Implement program loader",
+              "Create memory mapping for executables",
+              "Develop dynamic linking support",
+              "Add executable verification and security checks",
+              "Implement process argument passing"
+            ],
+            "files_to_create": [
+              "kernel/loader.c",
+              "kernel/loader.h"
+            ],
+            "integration_points": [
+              "File system",
+              "Memory management",
+              "Process management"
+            ]
+          }
+        }
+      ]
+    },
+    "system_call_interface": {
+      "goal": "Implement system call interface for user processes to access kernel services",
+      "tasks": [
+        {
+          "id": "syscall_1",
+          "title": "Design system call interface",
+          "description": "Create the system call mechanism for user processes to request kernel services",
+          "priority": "high",
+          "estimated_effort": "3-4 days",
+          "dependencies": ["User mode transition"],
+          "technical_approach": {
+            "steps": [
+              "Design system call numbers and interface",
+              "Implement SYSCALL/SYSRET or INT 0x80 mechanism",
+              "Create system call dispatch table",
+              "Develop parameter validation and copying",
+              "Implement return value handling",
+              "Add system call entry/exit tracing"
+            ],
+            "files_to_create": [
+              "kernel/syscall.c",
+              "kernel/syscall.h"
+            ],
+            "files_to_modify": [
+              "kernel/interrupts.asm"
+            ],
+            "integration_points": [
+              "User mode implementation",
+              "VFS layer",
+              "Process management"
+            ]
+          }
+        },
+        {
+          "id": "syscall_2",
+          "title": "Implement core system calls",
+          "description": "Implement essential system calls for process and file management",
+          "priority": "high",
+          "estimated_effort": "4-5 days",
+          "dependencies": ["System call interface design", "VFS implementation"],
+          "technical_approach": {
+            "steps": [
+              "Implement process management system calls (fork, exec, exit)",
+              "Create file operation system calls (open, close, read, write)",
+              "Develop memory management system calls (malloc, free variants)",
+              "Add time and sleep system calls",
+              "Implement inter-process communication system calls",
+              "Create system information system calls"
+            ],
+            "files_to_modify": [
+              "kernel/syscall.c"
+            ],
+            "integration_points": [
+              "Process management",
+              "File system",
+              "Timer system"
+            ]
+          }
+        },
+        {
+          "id": "syscall_3",
+          "title": "Implement system call security",
+          "description": "Add security checks and validation to system calls",
+          "priority": "medium",
+          "estimated_effort": "2-3 days",
+          "dependencies": ["Core system calls implementation"],
+          "technical_approach": {
+            "steps": [
+              "Implement privilege checking for system calls",
+              "Add parameter validation and bounds checking",
+              "Create access control for file operations",
+              "Develop memory access validation",
+              "Add audit logging for system calls",
+              "Implement system call filtering"
+            ],
+            "files_to_modify": [
+              "kernel/syscall.c"
+            ],
+            "integration_points": [
+              "User mode implementation",
+              "Memory management"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "integration_tasks": [
+    {
+      "id": "integration_1",
+      "title": "Integrate storage drivers with file system",
+      "description": "Connect storage drivers to file system implementations",
+      "priority": "high",
+      "estimated_effort": "2-3 days"
+    },
+    {
+      "id": "integration_2",
+      "title": "Integrate file system with system calls",
+      "description": "Connect file system operations to system call interface",
+      "priority": "high",
+      "estimated_effort": "2-3 days"
+    },
+    {
+      "id": "integration_3",
+      "title": "Integrate process management with system calls",
+      "description": "Connect process management functions to system call interface",
+      "priority": "high",
+      "estimated_effort": "2-3 days"
+    }
+  ],
+  "testing_and_validation": [
+    {
+      "id": "test_1",
+      "title": "Develop storage driver tests",
+      "description": "Create tests for storage driver functionality",
+      "priority": "high",
+      "estimated_effort": "1-2 days"
+    },
+    {
+      "id": "test_2",
+      "title": "Develop file system tests",
+      "description": "Create tests for file system operations",
+      "priority": "high",
+      "estimated_effort": "2-3 days"
+    },
+    {
+      "id": "test_3",
+      "title": "Develop system call tests",
+      "description": "Create tests for system call functionality",
+      "priority": "high",
+      "estimated_effort": "2-3 days"
+    },
+    {
+      "id": "test_4",
+      "title": "Develop user mode tests",
+      "description": "Create tests for user mode functionality and privilege separation",
+      "priority": "high",
+      "estimated_effort": "2-3 days"
+    }
+  ],
+  "estimated_timeline": {
+    "minimum_parallel_execution": "6-8 weeks",
+    "sequential_execution": "12-15 weeks"
+  },
+  "success_criteria": [
+    "Functional PATA/SATA drivers with read/write capabilities",
+    "Working VFS with at least one concrete file system implementation",
+    "Processes running in user mode with proper privilege separation",
+    "Complete system call interface with core functionality",
+    "Integration tests passing for all components"
+  ]
+}
